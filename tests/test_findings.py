@@ -23,3 +23,11 @@ def test_make_finding_rejects_bad_severity():
         assert False, "expected ValueError"
     except ValueError:
         pass
+
+
+def test_make_finding_rejects_empty_dedup_key():
+    try:
+        make_finding("", "t", "high", "i", "w", "a")
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
