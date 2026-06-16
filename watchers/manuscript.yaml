@@ -1,0 +1,13 @@
+id: manuscript
+cadence: { mode: manual }
+observe:
+  target: "active manuscript draft"
+  how: "manuscript observer: claim-integrity + citation-faithfulness + contradiction checks"
+  inputs: []
+flag:
+  fields: [type, severity, item, why_it_matters, suggested_action]
+  dedup_key: "claim-hash"
+stop:
+  pause_for_human_when: { severity_at_least: high }
+  exit_when: { empty_iterations: 2 }
+  max_iterations: 50

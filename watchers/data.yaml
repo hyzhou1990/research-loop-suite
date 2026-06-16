@@ -1,0 +1,13 @@
+id: data
+cadence: { mode: manual }
+observe:
+  target: "result/data artifacts"
+  how: "data observer: content-hash artifacts; flag changes (reproducibility drift)"
+  inputs: []   # populated with artifact file paths per project
+flag:
+  fields: [type, severity, item, why_it_matters, suggested_action]
+  dedup_key: "artifact name + content hash"
+stop:
+  pause_for_human_when: { severity_at_least: high }
+  exit_when: { empty_iterations: 3 }
+  max_iterations: 100

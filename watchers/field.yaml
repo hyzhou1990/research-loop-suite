@@ -1,0 +1,13 @@
+id: field
+cadence: { mode: self-paced, every: 1d }
+observe:
+  target: "preprints + competing labs near the RQ"
+  how: "field observer: scan preprint feeds; scoop-risk + emerging-method alerts"
+  inputs: []
+flag:
+  fields: [type, severity, item, why_it_matters, suggested_action]
+  dedup_key: "paper id"
+stop:
+  pause_for_human_when: { severity_at_least: high }
+  exit_when: { empty_iterations: 7 }
+  max_iterations: 100

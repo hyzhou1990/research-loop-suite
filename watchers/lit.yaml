@@ -1,0 +1,13 @@
+id: lit
+cadence: { mode: self-paced, every: 1d }
+observe:
+  target: "saved bibliography + research question"
+  how: "lit observer: query Semantic Scholar / OpenAlex / Crossref for new, retracted, or contradictory papers"
+  inputs: []
+flag:
+  fields: [type, severity, item, why_it_matters, suggested_action]
+  dedup_key: "paper DOI or id"
+stop:
+  pause_for_human_when: { severity_at_least: critical }
+  exit_when: { empty_iterations: 5 }
+  max_iterations: 100
