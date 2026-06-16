@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["dedup_key", "type", "severity", "item", "why_it_matters", "suggested_action", "status"],
+  "properties": {
+    "dedup_key": {"type": "string", "minLength": 1},
+    "type": {"type": "string"},
+    "severity": {"enum": ["low", "medium", "high", "critical"]},
+    "item": {"type": "string"},
+    "why_it_matters": {"type": "string"},
+    "suggested_action": {"type": "string"},
+    "status": {"enum": ["new", "ack", "dismissed", "actioned"]}
+  }
+}
