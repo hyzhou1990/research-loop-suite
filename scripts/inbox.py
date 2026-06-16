@@ -37,3 +37,17 @@ def render_digest(inbox_dir):
                          f"→ _{f['suggested_action']}_ [{f['status']}]")
         lines.append("")
     return "\n".join(lines)
+
+
+def main(argv=None):
+    import sys
+    argv = sys.argv[1:] if argv is None else argv
+    if not argv:
+        print("usage: python3 -m scripts.inbox <inbox_dir>", file=sys.stderr)
+        return 2
+    print(render_digest(argv[0]))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
