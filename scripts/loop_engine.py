@@ -20,6 +20,8 @@ def evaluate_stop(spec, state, new_findings):
     pause = stop.get("pause_for_human_when") or {}
     threshold = pause.get("severity_at_least")
     if threshold is not None:
+        if threshold not in SEVERITY_ORDER:
+            raise ValueError(f"invalid severity_at_least in spec: {threshold!r}")
         t = SEVERITY_ORDER[threshold]
         if any(SEVERITY_ORDER[f["severity"]] >= t for f in new_findings):
             return "pause"

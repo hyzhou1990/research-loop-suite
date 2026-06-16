@@ -30,3 +30,21 @@ def test_continue_otherwise():
     state = {"iteration": 1, "empty_streak": 0}
     new = [make_finding("k", "t", "low", "i", "w", "a")]
     assert evaluate_stop(spec, state, new) == "continue"
+
+
+def test_invalid_pause_threshold_raises_valueerror():
+    spec = _spec(max_iterations=100, pause_for_human_when={"severity_at_least": "High"})
+    state = {"iteration": 1, "empty_streak": 0}
+    try:
+        evaluate_stop(spec, state, [])
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_exit_beats_pause_when_both_fire():
+    # max_iterations reached AND a critical finding present -> exit wins
+    spec = _spec(max_iterations=5, pause_for_human_when={"severity_at_least": "high"})
+    state = {"iteration": 5, "empty_streak": 0}
+    new = [make_finding("k", "t", "critical", "i", "w", "a")]
+    assert evaluate_stop(spec, state, new) == "exit"

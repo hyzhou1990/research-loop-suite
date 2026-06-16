@@ -39,3 +39,10 @@ def test_pause_sets_blocked_status():
     res = run_iteration(spec, default_state("lit"), observer)
     assert res["decision"] == "pause"
     assert res["state"]["status"] == "blocked"
+
+
+def test_exit_sets_exited_status():
+    spec = {"id": "lit", "stop": {"max_iterations": 1}}
+    res = run_iteration(spec, default_state("lit"), make_observer(["a"]))
+    assert res["decision"] == "exit"
+    assert res["state"]["status"] == "exited"
