@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["watcher_id", "iteration", "seen_keys", "empty_streak", "status"],
+  "properties": {
+    "watcher_id": {"type": "string"},
+    "iteration": {"type": "integer", "minimum": 0},
+    "seen_keys": {"type": "array", "items": {"type": "string"}},
+    "empty_streak": {"type": "integer", "minimum": 0},
+    "last_hash": {"type": ["string", "null"]},
+    "cursor": {"type": ["string", "null"]},
+    "status": {"enum": ["active", "blocked", "exited"]}
+  }
+}
