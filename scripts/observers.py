@@ -1,6 +1,8 @@
 import hashlib
 from pathlib import Path
 
+from scripts import openalex
+
 REGISTRY = {}
 
 
@@ -17,8 +19,18 @@ def get_observer(watcher_id):
 
 @register("lit")
 def lit_observer(spec):
-    # Wired to Semantic Scholar / OpenAlex / Crossref in Phase 3b. Returns [] until then.
-    return []
+    inputs = (spec.get("observe") or {}).get("inputs") or {}
+    query = inputs.get("query")
+    if not query:
+        raise ValueError("lit observer requires inputs.query")
+    url = openalex.build_url(
+        query,
+        from_date=inputs.get("from_date"),
+        mailto=inputs.get("mailto"),
+        per_page=inputs.get("per_page", 50),
+    )
+    payload = openalex.fetch_works(url)
+    return openalex.parse_works(payload, query)
 
 
 @register("field")

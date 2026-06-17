@@ -1,12 +1,15 @@
 id: lit
 cadence: { mode: self-paced, every: 1d }
 observe:
-  target: "saved bibliography + research question"
-  how: "lit observer: query Semantic Scholar / OpenAlex / Crossref for new, retracted, or contradictory papers"
-  inputs: []
+  target: "OpenAlex works matching the query"
+  how: openalex
+  inputs:
+    query: "RSV prefusion F antigen"
+    from_date: "2026-01-01"
+    mailto: "you@example.com"
 flag:
   fields: [type, severity, item, why_it_matters, suggested_action]
-  dedup_key: "paper DOI or id"
+  dedup_key: "OpenAlex work id (or DOI)"
 stop:
   pause_for_human_when: { severity_at_least: critical }
   exit_when: { empty_iterations: 5 }

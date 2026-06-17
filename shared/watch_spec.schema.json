@@ -18,7 +18,7 @@
       "properties": {
         "target": {"type": "string"},
         "how": {"type": "string"},
-        "inputs": {"type": "array"}
+        "inputs": {"type": ["array", "object"]}
       }
     },
     "flag": {
