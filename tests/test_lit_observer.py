@@ -1,5 +1,3 @@
-import json
-from pathlib import Path
 import pytest
 import yaml
 
@@ -30,6 +28,26 @@ def test_lit_observer_requires_query():
     spec = {"id": "lit", "observe": {"inputs": {"from_date": "2026-01-01"}}}
     with pytest.raises(ValueError):
         get_observer("lit")(spec)
+
+
+def test_lit_observer_rejects_non_mapping_inputs():
+    spec = {"id": "lit", "observe": {"inputs": ["RSV"]}}  # list, not mapping
+    with pytest.raises(ValueError):
+        get_observer("lit")(spec)
+
+
+def test_lit_observer_clamps_per_page(monkeypatch):
+    captured = {}
+
+    def fake_build_url(query, from_date=None, mailto=None, per_page=50):
+        captured["per_page"] = per_page
+        return "https://api.openalex.org/works?search=x"
+
+    monkeypatch.setattr(oa, "build_url", fake_build_url)
+    monkeypatch.setattr(oa, "fetch_works", lambda url, **k: {"results": [], "meta": {"count": 0}})
+    spec = {"id": "lit", "observe": {"inputs": {"query": "RSV", "per_page": 9999}}}
+    get_observer("lit")(spec)
+    assert captured["per_page"] == 200  # clamped to OpenAlex max
 
 
 def test_lit_observer_end_to_end_inbox(tmp_path, monkeypatch):
