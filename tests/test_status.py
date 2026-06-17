@@ -46,3 +46,57 @@ def test_classify_blocked_takes_precedence():
     # blocked beats error/stale/ok
     health, _ = classify(_lr(decision="error", ts=0.0), now=10 * 86400, blocked=True)
     assert health == "blocked"
+
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+from scripts.status import gather, render
+
+
+def _seed_runtime(tmp_path):
+    runtime = tmp_path / ".research-loop"
+    lr = runtime / "last_run"
+    lr.mkdir(parents=True)
+    (lr / "lit.json").write_text(json.dumps(
+        {"watcher": "lit", "decision": "continue", "ts": 1000.0, "new": 2, "errors": 0,
+         "cadence": {"mode": "self-paced", "every": "1d"}}))
+    (lr / "data.json").write_text(json.dumps(
+        {"watcher": "data", "decision": "error", "ts": 900.0, "new": 1, "errors": 1,
+         "cadence": {"mode": "manual"}}))
+    # blocked marker for lit
+    (runtime / "BLOCKED-lit").write_text("paused")
+    return tmp_path
+
+
+def test_gather_reads_healths(tmp_path):
+    project = _seed_runtime(tmp_path)
+    rows = gather(project, now=2000.0)
+    by = {r["watcher"]: r for r in rows}
+    assert by["lit"]["health"] == "blocked"   # marker present
+    assert by["data"]["health"] == "error"
+    assert [r["watcher"] for r in rows] == ["data", "lit"]  # sorted
+
+
+def test_render_contains_watchers(tmp_path):
+    project = _seed_runtime(tmp_path)
+    rows = gather(project, now=2000.0)
+    table = render(rows, now=2000.0)
+    assert "lit" in table and "data" in table
+    assert "BLOCKED" in table.upper() and "ERROR" in table.upper()
+
+
+def test_status_cli(tmp_path):
+    project = _seed_runtime(tmp_path)
+    proc = subprocess.run([sys.executable, "-m", "scripts.status", str(project)],
+                          capture_output=True, text=True, cwd=str(Path.cwd()))
+    assert proc.returncode == 0
+    assert "lit" in proc.stdout and "data" in proc.stdout
+
+
+def test_status_cli_no_runs(tmp_path):
+    proc = subprocess.run([sys.executable, "-m", "scripts.status", str(tmp_path)],
+                          capture_output=True, text=True, cwd=str(Path.cwd()))
+    assert proc.returncode == 0
+    assert "no runs recorded" in proc.stdout.lower()
