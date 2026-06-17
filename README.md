@@ -103,6 +103,7 @@ The in-process sandbox (`scripts/sandbox.py`, an `sys.addaudithook` veto) has kn
 - pre-opened file descriptors plus raw `os.write` are not interceptable via audit hooks (writes happen at the fd level, below the hooked events);
 - observers that need to run read-only external tools must use an OS-level read-only mount, not this hook — spawning child processes is blocked by design (they would not inherit the audit hook);
 - the thread-local gate covers the observing thread only; spawning new threads is blocked rather than propagated into them.
+- the sandbox blocks filesystem writes and process/thread spawning, **not network egress** — the `lit` observer makes outbound HTTP (GET-only) to OpenAlex, so "observe-only" here means read-only w.r.t. the project, not zero external calls.
 
 ## Layout
 
