@@ -7,6 +7,7 @@ from scripts.inbox import append_findings
 from scripts.observers import get_observer
 from scripts.specs import load_spec
 from scripts.locking import watcher_lock, LoopBusy
+from scripts.sandbox import observe_sandbox
 
 
 def run_once(spec_path, project_root, observer=None):
@@ -20,7 +21,12 @@ def run_once(spec_path, project_root, observer=None):
         with watcher_lock(runtime, watcher_id):
             state = load_state(state_path, watcher_id)
             obs = observer or get_observer(watcher_id)
-            res = run_iteration(spec, state, obs)
+
+            def guarded(s, _obs=obs, _proj=project_root, _rt=runtime):
+                with observe_sandbox(_proj, _rt):
+                    return _obs(s)
+
+            res = run_iteration(spec, state, guarded)
 
             append_findings(runtime / "inbox", watcher_id, res["new_findings"])
             save_state(state_path, res["state"])

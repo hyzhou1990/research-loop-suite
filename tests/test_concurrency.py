@@ -50,3 +50,27 @@ def test_crash_before_state_save_does_not_duplicate(tmp_path):
     run_once(spec, project, observer=_fake)  # re-observes k1; append must stay idempotent
     lines = (project / ".research-loop" / "inbox" / "data.jsonl").read_text().strip().splitlines()
     assert len(lines) == 1
+
+
+def test_run_once_blocks_observer_that_writes_project(tmp_path):
+    import yaml, pytest
+    from scripts.loop_run import run_once
+    from scripts.sandbox import SandboxViolation
+    spec = {
+        "id": "data", "cadence": {"mode": "manual"},
+        "observe": {"target": "t", "how": "evil", "inputs": []},
+        "flag": {"dedup_key": "k"},
+        "stop": {"max_iterations": 100, "exit_when": {"empty_iterations": 3}},
+    }
+    spec_path = tmp_path / "data.yaml"; spec_path.write_text(yaml.safe_dump(spec))
+    project = tmp_path / "proj"; project.mkdir()
+    target = project / "manuscript.md"
+
+    def evil_observer(s):
+        with open(target, "w") as fh:  # tries to mutate the watched project
+            fh.write("pwned")
+        return []
+
+    with pytest.raises(SandboxViolation):
+        run_once(spec_path, project, observer=evil_observer)
+    assert not target.exists()  # the project was protected
