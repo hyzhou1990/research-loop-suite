@@ -61,7 +61,9 @@ def test_save_state_failure_preserves_original_and_leaves_no_tmp(tmp_path, monke
         raise RuntimeError("disk full")
 
     # Inject a failure mid-write (temp file open, before os.replace).
-    monkeypatch.setattr("scripts.state.os.fsync", boom)
+    # save_state now delegates the durable write to scripts.io_utils.atomic_write_text,
+    # so fsync lives there.
+    monkeypatch.setattr("scripts.io_utils.os.fsync", boom)
     with pytest.raises(RuntimeError):
         save_state(p, {**default_state("lit"), "iteration": 2})
 

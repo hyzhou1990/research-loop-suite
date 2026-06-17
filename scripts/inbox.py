@@ -1,7 +1,5 @@
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 
 from scripts.locking import watcher_lock, LoopBusy
@@ -65,22 +63,9 @@ def render_digest(inbox_dir, show_all=False):
 
 
 def _atomic_write_lines(path, lines):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            for line in lines:
-                fh.write(line + "\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    from scripts.io_utils import atomic_write_text
+    text = "".join(line + "\n" for line in lines)
+    atomic_write_text(path, text)
 
 
 def set_status(inbox_dir, dedup_key_prefix, new_status):

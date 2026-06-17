@@ -1,6 +1,4 @@
 import json
-import os
-import tempfile
 from pathlib import Path
 
 import jsonschema
@@ -40,18 +38,5 @@ def load_state(path, watcher_id):
 
 
 def save_state(path, state):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(json.dumps(state, indent=2))
-            fh.flush()
-            os.fsync(fh.fileno())
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    from scripts.io_utils import atomic_write_text
+    atomic_write_text(path, json.dumps(state, indent=2))
