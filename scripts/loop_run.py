@@ -1,6 +1,8 @@
 import sys
+import time
 from pathlib import Path
 
+from scripts.runlog import record_run
 from scripts.state import load_state, save_state
 from scripts.loop_engine import run_iteration
 from scripts.inbox import append_findings
@@ -14,10 +16,20 @@ from scripts.findings import make_finding
 def run_once(spec_path, project_root, observer=None):
     spec = load_spec(spec_path)
     watcher_id = spec["id"]
+    cadence = spec.get("cadence", {})
     project_root = Path(project_root)
     runtime = project_root / ".research-loop"
     state_path = runtime / "state" / f"{watcher_id}.json"
 
+    def _record(res, ms, error=None):
+        try:
+            errors = 1 if res["decision"] == "error" else 0
+            record_run(runtime, watcher_id, res["decision"], len(res["new_findings"]),
+                       errors, ms, cadence, error=error)
+        except Exception:
+            pass  # logging must never crash a loop run
+
+    start = time.monotonic()
     try:
         with watcher_lock(runtime, watcher_id):
             state = load_state(state_path, watcher_id)
@@ -41,12 +53,14 @@ def run_once(spec_path, project_root, observer=None):
                     suggested_action="inspect the observer/source; the watcher made no progress this run",
                 )
                 append_findings(runtime / "inbox", watcher_id, [err])
-                return {
+                result = {
                     "new_findings": [err],
                     "state": None,
                     "decision": "error",
                     "error": f"{type(e).__name__}: {e}",
                 }
+                _record(result, int((time.monotonic() - start) * 1000), error=result["error"])
+                return result
 
             append_findings(runtime / "inbox", watcher_id, res["new_findings"])
             save_state(state_path, res["state"])
@@ -56,9 +70,12 @@ def run_once(spec_path, project_root, observer=None):
                 (runtime / f"BLOCKED-{watcher_id}").write_text(
                     f"Paused for human review at iteration {res['state']['iteration']}.\n"
                 )
+            _record(res, int((time.monotonic() - start) * 1000))
             return res
     except LoopBusy:
-        return {"new_findings": [], "state": None, "decision": "skipped"}
+        result = {"new_findings": [], "state": None, "decision": "skipped"}
+        _record(result, int((time.monotonic() - start) * 1000))
+        return result
 
 
 def main(argv=None):

@@ -58,3 +58,15 @@ def test_pause_writes_blocked_marker(tmp_path):
 
     run_once(spec_path, project, observer=obs)
     assert (project / ".research-loop/BLOCKED-lit").exists()
+
+
+def test_run_once_writes_heartbeat_and_log(tmp_path):
+    import json as _json
+    spec_path = write_spec(tmp_path)   # existing helper in this file (id: lit, manual)
+    project = tmp_path / "proj"
+    run_once(spec_path, project, observer=fake_observer)   # existing fake_observer -> 1 finding
+    hb = _json.loads((project / ".research-loop" / "last_run" / "lit.json").read_text())
+    assert hb["decision"] == "continue"
+    assert hb["new"] == 1
+    log_line = (project / ".research-loop" / "log" / "lit.jsonl").read_text().strip()
+    assert "\"decision\": \"continue\"" in log_line or _json.loads(log_line)["decision"] == "continue"
