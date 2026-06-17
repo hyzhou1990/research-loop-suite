@@ -5,7 +5,7 @@ A **loop-native research suite**: a lean engine that runs declarative *watcher* 
 > **The one invariant:** _Observe autonomously. Mutate only behind a human gate._
 > A loop may search, read, diff, score, and flag. It never edits your manuscript or data, and it can only write inside `.research-loop/`. Acting on a finding is always a human decision.
 
-[![tests](https://img.shields.io/badge/tests-89%20passing-brightgreen)](#development)
+[![tests](https://img.shields.io/badge/tests-101%20passing-brightgreen)](#development)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 ---
@@ -77,6 +77,17 @@ python3 -m scripts.inbox /path/to/your/project/.research-loop/inbox
 
 State lives in `<project>/.research-loop/state/<watcher>.json`; findings in `<project>/.research-loop/inbox/<watcher>.jsonl`.
 
+### Triage the inbox
+
+```bash
+python3 -m scripts.inbox <project>/.research-loop/inbox                 # digest (hides dismissed)
+python3 -m scripts.inbox <project>/.research-loop/inbox --all           # include dismissed
+python3 -m scripts.inbox <project>/.research-loop/inbox ack      <key>  # mark seen
+python3 -m scripts.inbox <project>/.research-loop/inbox dismiss  <key>  # hide from digest
+python3 -m scripts.inbox <project>/.research-loop/inbox actioned <key>  # mark handled
+```
+`<key>` is any unique prefix of a finding's `dedup_key` (shown in the digest).
+
 ## Schedulers
 
 All three call the same entrypoint — a watcher doesn't care which fires it:
@@ -129,7 +140,7 @@ The engine handles dedup, scoring, the inbox, state, and stop logic — the obse
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q          # 89 passing
+.venv/bin/pytest -q          # 101 passing
 ```
 
 ### Smoke test
