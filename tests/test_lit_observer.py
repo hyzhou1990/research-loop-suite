@@ -122,6 +122,22 @@ def test_lit_observer_empty_results_keeps_cursor(monkeypatch):
     assert out["cursor"] == "2026-04-04"
 
 
+def test_lit_observer_ignores_malformed_dates_for_cursor(monkeypatch):
+    payload = {"results": [
+        {"id": "https://openalex.org/W1", "title": "A", "publication_date": "2026-05-01"},
+        {"id": "https://openalex.org/W2", "title": "B", "publication_date": "2026"},        # partial
+        {"id": "https://openalex.org/W3", "title": "C", "publication_date": "2026-6-1"},     # non-padded
+    ], "meta": {"count": 3}}
+    monkeypatch.setattr(oa, "build_url", lambda *a, **k: "u")
+    monkeypatch.setattr(oa, "fetch_works", lambda url, **k: payload)
+    spec = {"id": "lit", "observe": {"inputs": {"query": "RSV"}}}
+    out = get_observer("lit")(spec, {"cursor": "2026-01-01"})
+    # only the well-formed 2026-05-01 may advance the cursor
+    assert out["cursor"] == "2026-05-01"
+    # all three still surface as findings (this only affects the cursor, not findings)
+    assert len(out["findings"]) == 3
+
+
 def test_lit_observer_no_cursor_no_results_is_none(monkeypatch):
     monkeypatch.setattr(oa, "build_url", lambda *a, **k: "u")
     monkeypatch.setattr(oa, "fetch_works", lambda url, **k: {"results": [], "meta": {"count": 0}})

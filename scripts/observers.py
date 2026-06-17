@@ -1,4 +1,5 @@
 import hashlib
+import re
 from pathlib import Path
 
 from scripts import openalex
@@ -26,6 +27,7 @@ def lit_observer(spec, state=None):
     if not query:
         raise ValueError("lit observer requires inputs.query")
     cursor = (state or {}).get("cursor")
+    # cursor "" / None both fall back to the spec from_date (intentional truthiness contract)
     from_date = cursor or inputs.get("from_date")
     try:
         per_page = max(1, min(int(inputs.get("per_page", 50)), 200))  # OpenAlex hard cap
@@ -35,7 +37,9 @@ def lit_observer(spec, state=None):
     payload = openalex.fetch_works(url)
     findings = openalex.parse_works(payload, query)
     dates = [w.get("publication_date") for w in (payload.get("results") or [])
-             if isinstance(w, dict) and w.get("publication_date")]
+             if isinstance(w, dict)
+             and isinstance(w.get("publication_date"), str)
+             and re.fullmatch(r"\d{4}-\d{2}-\d{2}", w["publication_date"])]
     candidate_dates = ([cursor] if cursor else []) + dates
     new_cursor = max(candidate_dates) if candidate_dates else None
     return {"findings": findings, "cursor": new_cursor}
@@ -61,12 +65,13 @@ def data_observer(spec):
     findings = []
     for entry in inputs:
         p = Path(entry)
-        if not p.exists():
-            continue
-        h = hashlib.sha256()
-        with open(p, "rb") as fh:
-            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-                h.update(chunk)
+        try:
+            h = hashlib.sha256()
+            with open(p, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                    h.update(chunk)
+        except (FileNotFoundError, OSError):
+            continue  # input path missing/unreadable this run — skip
         digest = h.hexdigest()[:16]
         findings.append(make_finding(
             dedup_key=f"{p.name}:{digest}",
