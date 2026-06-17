@@ -1,5 +1,6 @@
 import json
 import time
+import urllib.error
 import urllib.request
 from urllib.parse import urlencode
 
@@ -25,13 +26,15 @@ def parse_works(payload, query):
     results = payload.get("results") or []
     findings = []
     for w in results:
+        if not isinstance(w, dict):
+            continue
         key = w.get("id") or w.get("doi")
         if not key:
             continue  # cannot dedup without a stable identifier
         title = w.get("title") or "(untitled)"
         year = w.get("publication_year")
         date = w.get("publication_date") or "unknown date"
-        cited = w.get("cited_by_count", 0)
+        cited = w.get("cited_by_count") or 0
         landing = w.get("doi") or w.get("id")
         item = f"{title} ({year})" if year else title
         findings.append(make_finding(
@@ -62,13 +65,15 @@ def fetch_works(url, timeout=10, retries=1):
     last_err = None
     for attempt in range(retries + 1):
         try:
+            # OpenAlex "polite pool" is reached via the mailto in the URL (see build_url),
+            # not this static UA.
             req = urllib.request.Request(url, headers={"User-Agent": "research-loop-suite"})
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 status = getattr(resp, "status", 200)
                 if status != 200:
                     raise RuntimeError(f"OpenAlex returned HTTP {status}")
                 return json.loads(resp.read().decode("utf-8"))
-        except Exception as e:  # noqa: BLE001 - re-raised as RuntimeError below
+        except (urllib.error.URLError, OSError, TimeoutError, RuntimeError, json.JSONDecodeError) as e:
             last_err = e
             if attempt < retries:
                 time.sleep(0.5 * (attempt + 1))

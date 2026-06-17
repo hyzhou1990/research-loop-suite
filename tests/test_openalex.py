@@ -134,3 +134,25 @@ def test_fetch_works_raises_on_persistent_error(monkeypatch):
     with pytest.raises(RuntimeError):
         oa.fetch_works("https://api.openalex.org/works?search=x")
     assert calls["n"] == 2  # one retry then give up
+
+
+def test_parse_works_skips_non_dict_work():
+    payload = _payload([None, "junk", {"id": "https://openalex.org/W1", "title": "T"}])
+    out = parse_works(payload, "x")
+    assert len(out) == 1
+    assert out[0]["dedup_key"] == "https://openalex.org/W1"
+
+
+def test_parse_works_handles_null_cited_by_count():
+    payload = _payload([{"id": "https://openalex.org/W1", "title": "T", "cited_by_count": None}])
+    out = parse_works(payload, "x")
+    assert "cited-by 0" in out[0]["why_it_matters"]
+
+
+def test_fetch_works_does_not_mask_programming_errors(monkeypatch):
+    def boom(req, timeout=None):
+        raise TypeError("a real bug, not a transient failure")
+    monkeypatch.setattr(oa.urllib.request, "urlopen", boom)
+    monkeypatch.setattr(oa.time, "sleep", lambda *_: None)
+    with pytest.raises(TypeError):
+        oa.fetch_works("https://api.openalex.org/works?search=x")
