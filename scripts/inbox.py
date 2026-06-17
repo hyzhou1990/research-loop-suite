@@ -31,10 +31,10 @@ def render_digest(inbox_dir):
         group = [f for f in findings if f["severity"] == sev]
         if not group:
             continue
-        lines.append(f"## {sev.upper()}")
+        lines.append(f"## {sev.upper()} ({len(group)})")
         for f in group:
             lines.append(f"- **{f['item']}** ({f['type']}) — {f['why_it_matters']} "
-                         f"→ _{f['suggested_action']}_ [{f['status']}]")
+                         f"→ _{f['suggested_action']}_  `{f['dedup_key']}` [{f['status']}]")
         lines.append("")
     return "\n".join(lines)
 

@@ -28,3 +28,17 @@ def test_render_digest_groups_by_severity(tmp_path):
     md = render_digest(inbox)
     assert "CRITICAL" in md
     assert md.index("Crit item") < md.index("Low item")  # critical listed first
+
+
+def test_digest_shows_count_and_dedup_key(tmp_path):
+    inbox = tmp_path / "inbox"
+    append_findings(inbox, "data", [
+        make_finding("results.csv:aaaa1111", "artifact_change", "medium", "/p/results.csv", "hash differs", "review"),
+        make_finding("results.csv:bbbb2222", "artifact_change", "medium", "/p/results.csv", "hash differs", "review"),
+    ])
+    md = render_digest(inbox)
+    # severity header carries a count
+    assert "## MEDIUM (2)" in md
+    # two same-item findings are now distinguishable by their dedup_key
+    assert "results.csv:aaaa1111" in md
+    assert "results.csv:bbbb2222" in md
