@@ -123,6 +123,14 @@ python3 -m venv .venv
 .venv/bin/pytest -q          # 42 passing
 ```
 
+### Smoke test
+
+Run the whole pipeline end-to-end (data-watcher lifecycle + write-scope gate) in one command before deploys or in CI; it exits non-zero if anything is wrong.
+
+```bash
+scripts/smoke.sh
+```
+
 ## License
 
 [Apache-2.0](LICENSE) © 2026 hyzhou1990
