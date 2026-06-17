@@ -5,7 +5,7 @@ A **loop-native research suite**: a lean engine that runs declarative *watcher* 
 > **The one invariant:** _Observe autonomously. Mutate only behind a human gate._
 > A loop may search, read, diff, score, and flag. It never edits your manuscript or data, and it can only write inside `.research-loop/`. Acting on a finding is always a human decision.
 
-[![tests](https://img.shields.io/badge/tests-52%20passing-brightgreen)](#development)
+[![tests](https://img.shields.io/badge/tests-67%20passing-brightgreen)](#development)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 ---
@@ -126,7 +126,7 @@ The engine handles dedup, scoring, the inbox, state, and stop logic — the obse
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q          # 52 passing
+.venv/bin/pytest -q          # 67 passing
 ```
 
 ### Smoke test
