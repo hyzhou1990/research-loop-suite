@@ -29,3 +29,71 @@ def test_build_url_encodes_special_chars():
     url = build_url("p53 & MDM2")
     p = _params(url)
     assert p["search"] == ["p53 & MDM2"]   # round-trips through encoding
+
+
+from scripts.openalex import parse_works
+
+
+def _payload(results, count=None):
+    return {"results": results, "meta": {"count": count if count is not None else len(results)}}
+
+
+def test_parse_works_maps_fields():
+    payload = _payload([{
+        "id": "https://openalex.org/W1",
+        "doi": "https://doi.org/10.1/x",
+        "title": "Prefusion F antigen design",
+        "publication_year": 2026,
+        "publication_date": "2026-05-01",
+        "cited_by_count": 7,
+    }])
+    out = parse_works(payload, "RSV")
+    assert len(out) == 1
+    f = out[0]
+    assert f["dedup_key"] == "https://openalex.org/W1"
+    assert f["type"] == "new_paper"
+    assert f["severity"] == "medium"
+    assert "Prefusion F antigen design" in f["item"]
+    assert "2026" in f["item"]
+    assert "RSV" in f["why_it_matters"]
+    assert "cited-by 7" in f["why_it_matters"]
+    assert "10.1/x" in f["suggested_action"]
+
+
+def test_parse_works_empty():
+    assert parse_works(_payload([]), "x") == []
+
+
+def test_parse_works_handles_missing_fields():
+    # no title, no doi, no cited_by_count, but has id -> still produces a finding
+    payload = _payload([{"id": "https://openalex.org/W2"}])
+    out = parse_works(payload, "x")
+    assert len(out) == 1
+    assert out[0]["dedup_key"] == "https://openalex.org/W2"
+    assert "(untitled)" in out[0]["item"]
+    # falls back to the OpenAlex url in the action since no doi
+    assert "openalex.org/W2" in out[0]["suggested_action"]
+
+
+def test_parse_works_falls_back_to_doi_when_no_id():
+    payload = _payload([{"doi": "https://doi.org/10.2/y", "title": "T"}])
+    out = parse_works(payload, "x")
+    assert out[0]["dedup_key"] == "https://doi.org/10.2/y"
+
+
+def test_parse_works_skips_work_without_id_or_doi():
+    payload = _payload([{"title": "no identifiers"}])
+    assert parse_works(payload, "x") == []
+
+
+def test_parse_works_appends_coverage_note_when_truncated():
+    # meta.count (100) > returned results (1) -> advisory coverage note
+    payload = _payload([{"id": "https://openalex.org/W1", "title": "T"}], count=100)
+    out = parse_works(payload, "topic")
+    assert len(out) == 2
+    note = out[-1]
+    assert note["type"] == "coverage_note"
+    assert note["severity"] == "low"
+    assert "100" in note["why_it_matters"]
+    # stable dedup key per (query, count) so it is not re-reported every run
+    assert note["dedup_key"] == "coverage:topic:100"
