@@ -70,3 +70,31 @@ def test_run_once_writes_heartbeat_and_log(tmp_path):
     assert hb["new"] == 1
     log_line = (project / ".research-loop" / "log" / "lit.jsonl").read_text().strip()
     assert "\"decision\": \"continue\"" in log_line or _json.loads(log_line)["decision"] == "continue"
+
+
+def test_run_once_passes_state_to_two_arg_observer(tmp_path):
+    import yaml as _yaml
+    captured = {}
+
+    def two_arg_observer(spec, state):
+        captured["cursor_in"] = state.get("cursor")
+        return {"findings": [], "cursor": "2026-09-09"}
+
+    spec = {
+        "id": "lit", "cadence": {"mode": "manual"},
+        "observe": {"target": "t", "how": "x", "inputs": {"query": "q"}},
+        "flag": {"dedup_key": "id"},
+        "stop": {"max_iterations": 100, "exit_when": {"empty_iterations": 3}},
+    }
+    spec_path = tmp_path / "lit.yaml"
+    spec_path.write_text(_yaml.safe_dump(spec))
+    project = tmp_path / "proj"
+
+    run_once(spec_path, project, observer=two_arg_observer)            # first run: no cursor yet
+    assert captured["cursor_in"] is None
+    import json as _json
+    state = _json.loads((project / ".research-loop" / "state" / "lit.json").read_text())
+    assert state["cursor"] == "2026-09-09"
+
+    run_once(spec_path, project, observer=two_arg_observer)            # second run: cursor present
+    assert captured["cursor_in"] == "2026-09-09"

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from scripts.runlog import record_run
 from scripts.state import load_state, save_state
-from scripts.loop_engine import run_iteration
+from scripts.loop_engine import run_iteration, call_observer
 from scripts.inbox import append_findings
 from scripts.observers import get_observer
 from scripts.specs import load_spec
@@ -38,9 +38,9 @@ def run_once(spec_path, project_root, observer=None):
             state = load_state(state_path, watcher_id)
             obs = observer or get_observer(watcher_id)
 
-            def guarded(s, _obs=obs, _proj=project_root, _rt=runtime):
-                with observe_sandbox(_proj, _rt):
-                    return _obs(s)
+            def guarded(spec_arg, state_arg):
+                with observe_sandbox(project_root, runtime):
+                    return call_observer(obs, spec_arg, state_arg)
 
             try:
                 res = run_iteration(spec, state, guarded)
