@@ -5,9 +5,8 @@ observe:
   how: openalex
   inputs:
     query: "RSV prefusion F antigen"
-    # Each run re-queries from this static from_date and relies on the engine's
-    # seen_keys dedup to surface only new papers — correct, but it re-fetches a
-    # growing window over time (incremental cursoring is roadmap item #6).
+    # First run uses this from_date; subsequent runs advance a stored cursor
+    # (state.cursor = last-seen publication_date), so only newer papers are fetched.
     from_date: "2026-01-01"
     mailto: "you@example.com"
 flag:
