@@ -6,6 +6,7 @@ from scripts.loop_engine import run_iteration
 from scripts.inbox import append_findings
 from scripts.observers import get_observer
 from scripts.specs import load_spec
+from scripts.locking import watcher_lock, LoopBusy
 
 
 def run_once(spec_path, project_root, observer=None):
@@ -15,19 +16,23 @@ def run_once(spec_path, project_root, observer=None):
     runtime = project_root / ".research-loop"
     state_path = runtime / "state" / f"{watcher_id}.json"
 
-    state = load_state(state_path, watcher_id)
-    obs = observer or get_observer(watcher_id)
-    res = run_iteration(spec, state, obs)
+    try:
+        with watcher_lock(runtime, watcher_id):
+            state = load_state(state_path, watcher_id)
+            obs = observer or get_observer(watcher_id)
+            res = run_iteration(spec, state, obs)
 
-    append_findings(runtime / "inbox", watcher_id, res["new_findings"])
-    save_state(state_path, res["state"])
+            append_findings(runtime / "inbox", watcher_id, res["new_findings"])
+            save_state(state_path, res["state"])
 
-    if res["decision"] == "pause":
-        runtime.mkdir(parents=True, exist_ok=True)
-        (runtime / f"BLOCKED-{watcher_id}").write_text(
-            f"Paused for human review at iteration {res['state']['iteration']}.\n"
-        )
-    return res
+            if res["decision"] == "pause":
+                runtime.mkdir(parents=True, exist_ok=True)
+                (runtime / f"BLOCKED-{watcher_id}").write_text(
+                    f"Paused for human review at iteration {res['state']['iteration']}.\n"
+                )
+            return res
+    except LoopBusy:
+        return {"new_findings": [], "state": None, "decision": "skipped"}
 
 
 def main(argv=None):

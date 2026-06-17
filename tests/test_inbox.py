@@ -19,6 +19,15 @@ def test_append_is_additive(tmp_path):
     assert len(path.read_text().strip().splitlines()) == 2
 
 
+def test_append_is_idempotent_on_same_dedup_key(tmp_path):
+    inbox = tmp_path / "inbox"
+    f = make_finding("k1", "t", "low", "i", "w", "a")
+    append_findings(inbox, "lit", [f])
+    append_findings(inbox, "lit", [f])  # same key again (e.g. crash re-run)
+    lines = (inbox / "lit.jsonl").read_text().strip().splitlines()
+    assert len(lines) == 1
+
+
 def test_render_digest_groups_by_severity(tmp_path):
     inbox = tmp_path / "inbox"
     append_findings(inbox, "lit", [

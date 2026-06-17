@@ -4,13 +4,27 @@ from pathlib import Path
 SEVERITY_ORDER = ["critical", "high", "medium", "low"]
 
 
+def _existing_keys(path):
+    if not path.exists():
+        return set()
+    keys = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            keys.add(json.loads(line)["dedup_key"])
+    return keys
+
+
 def append_findings(inbox_dir, watcher_id, findings):
     inbox_dir = Path(inbox_dir)
     inbox_dir.mkdir(parents=True, exist_ok=True)
     path = inbox_dir / f"{watcher_id}.jsonl"
-    with path.open("a") as fh:
+    seen = _existing_keys(path)
+    with path.open("a", encoding="utf-8") as fh:
         for f in findings:
+            if f["dedup_key"] in seen:
+                continue
             fh.write(json.dumps(f) + "\n")
+            seen.add(f["dedup_key"])
     return path
 
 

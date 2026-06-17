@@ -39,3 +39,13 @@ def test_load_malformed_json_state_raises(tmp_path):
     p.write_text('{"watcher_id": "lit", "iter')  # truncated / invalid JSON
     with pytest.raises(ValueError):
         load_state(p, "lit")
+
+
+def test_save_state_is_atomic_no_tmp_left(tmp_path):
+    p = tmp_path / "s.json"
+    save_state(p, default_state("lit"))
+    save_state(p, {**default_state("lit"), "iteration": 2})
+    # no leftover temp files, final content valid and current
+    leftovers = [x.name for x in tmp_path.iterdir() if x.name != "s.json"]
+    assert leftovers == []
+    assert load_state(p, "lit")["iteration"] == 2
