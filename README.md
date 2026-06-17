@@ -5,7 +5,7 @@ A **loop-native research suite**: a lean engine that runs declarative *watcher* 
 > **The one invariant:** _Observe autonomously. Mutate only behind a human gate._
 > A loop may search, read, diff, score, and flag. It never edits your manuscript or data, and it can only write inside `.research-loop/`. Acting on a finding is always a human decision.
 
-[![tests](https://img.shields.io/badge/tests-67%20passing-brightgreen)](#development)
+[![tests](https://img.shields.io/badge/tests-89%20passing-brightgreen)](#development)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 ---
@@ -55,11 +55,13 @@ stop:
 | id | watches | observe | status |
 |----|---------|---------|--------|
 | `data` | result/data artifacts | content-hash drift (reproducibility) | **functional** |
-| `lit` | literature landscape | new / retracted / contradictory papers | stub (returns `[]`) |
+| `lit` | literature landscape | new / retracted / contradictory papers | **functional** (OpenAlex) |
 | `field` | preprints / competing labs | scoop-risk, emerging methods | stub (returns `[]`) |
 | `manuscript` | the active draft | claim-integrity, citation-faithfulness | stub (returns `[]`) |
 
-> The `data` watcher is fully wired and proven end-to-end. The other three are intentional stubs: the engine, gate, inbox, dedup, and scheduling are complete, and each remaining watcher needs only its observer wired to a real source.
+> The `data` and `lit` watchers are fully wired and proven end-to-end. The other two are intentional stubs: the engine, gate, inbox, dedup, and scheduling are complete, and each remaining watcher needs only its observer wired to a real source.
+>
+> The `lit` watcher queries OpenAlex (no API key needed); set `observe.inputs.query` in `watchers/lit.yaml`.
 
 ## Quick start
 
@@ -126,7 +128,7 @@ The engine handles dedup, scoring, the inbox, state, and stop logic — the obse
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q          # 67 passing
+.venv/bin/pytest -q          # 89 passing
 ```
 
 ### Smoke test
