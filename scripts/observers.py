@@ -63,7 +63,11 @@ def data_observer(spec):
         p = Path(entry)
         if not p.exists():
             continue
-        digest = hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+        h = hashlib.sha256()
+        with open(p, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                h.update(chunk)
+        digest = h.hexdigest()[:16]
         findings.append(make_finding(
             dedup_key=f"{p.name}:{digest}",
             type="artifact_change",
