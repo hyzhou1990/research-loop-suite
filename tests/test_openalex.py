@@ -97,3 +97,40 @@ def test_parse_works_appends_coverage_note_when_truncated():
     assert "100" in note["why_it_matters"]
     # stable dedup key per (query, count) so it is not re-reported every run
     assert note["dedup_key"] == "coverage:topic:100"
+
+
+import json
+import io
+import pytest
+import scripts.openalex as oa
+
+
+class _FakeResp(io.BytesIO):
+    status = 200
+    def __enter__(self): return self
+    def __exit__(self, *a): self.close()
+
+
+def test_fetch_works_parses_json(monkeypatch):
+    payload = {"results": [{"id": "W1"}], "meta": {"count": 1}}
+
+    def fake_urlopen(req, timeout=None):
+        return _FakeResp(json.dumps(payload).encode())
+
+    monkeypatch.setattr(oa.urllib.request, "urlopen", fake_urlopen)
+    out = oa.fetch_works("https://api.openalex.org/works?search=x")
+    assert out == payload
+
+
+def test_fetch_works_raises_on_persistent_error(monkeypatch):
+    calls = {"n": 0}
+
+    def always_fail(req, timeout=None):
+        calls["n"] += 1
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(oa.urllib.request, "urlopen", always_fail)
+    monkeypatch.setattr(oa.time, "sleep", lambda *_: None)  # no real backoff delay
+    with pytest.raises(RuntimeError):
+        oa.fetch_works("https://api.openalex.org/works?search=x")
+    assert calls["n"] == 2  # one retry then give up

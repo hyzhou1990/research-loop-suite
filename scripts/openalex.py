@@ -1,3 +1,6 @@
+import json
+import time
+import urllib.request
 from urllib.parse import urlencode
 
 from scripts.findings import make_finding
@@ -51,3 +54,22 @@ def parse_works(payload, query):
             suggested_action="narrow the query or raise per_page if you need fuller coverage",
         ))
     return findings
+
+
+def fetch_works(url, timeout=10, retries=1):
+    """Fetch + JSON-decode an OpenAlex URL. Retries once on transient failure,
+    then raises RuntimeError. Network layer — keep logic in parse_works."""
+    last_err = None
+    for attempt in range(retries + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "research-loop-suite"})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                status = getattr(resp, "status", 200)
+                if status != 200:
+                    raise RuntimeError(f"OpenAlex returned HTTP {status}")
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as e:  # noqa: BLE001 - re-raised as RuntimeError below
+            last_err = e
+            if attempt < retries:
+                time.sleep(0.5 * (attempt + 1))
+    raise RuntimeError(f"OpenAlex fetch failed for {url}: {last_err}")
