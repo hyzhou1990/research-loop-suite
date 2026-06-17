@@ -18,25 +18,27 @@ def get_observer(watcher_id):
 
 
 @register("lit")
-def lit_observer(spec):
+def lit_observer(spec, state=None):
     inputs = (spec.get("observe") or {}).get("inputs") or {}
     if not isinstance(inputs, dict):
         raise ValueError("lit observer requires inputs to be a mapping with a 'query' key")
     query = inputs.get("query")
     if not query:
         raise ValueError("lit observer requires inputs.query")
+    cursor = (state or {}).get("cursor")
+    from_date = cursor or inputs.get("from_date")
     try:
         per_page = max(1, min(int(inputs.get("per_page", 50)), 200))  # OpenAlex hard cap
     except (TypeError, ValueError):
         per_page = 50
-    url = openalex.build_url(
-        query,
-        from_date=inputs.get("from_date"),
-        mailto=inputs.get("mailto"),
-        per_page=per_page,
-    )
+    url = openalex.build_url(query, from_date=from_date, mailto=inputs.get("mailto"), per_page=per_page)
     payload = openalex.fetch_works(url)
-    return openalex.parse_works(payload, query)
+    findings = openalex.parse_works(payload, query)
+    dates = [w.get("publication_date") for w in (payload.get("results") or [])
+             if isinstance(w, dict) and w.get("publication_date")]
+    candidate_dates = ([cursor] if cursor else []) + dates
+    new_cursor = max(candidate_dates) if candidate_dates else None
+    return {"findings": findings, "cursor": new_cursor}
 
 
 @register("field")
