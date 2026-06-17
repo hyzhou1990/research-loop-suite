@@ -100,3 +100,21 @@ def test_status_cli_no_runs(tmp_path):
                           capture_output=True, text=True, cwd=str(Path.cwd()))
     assert proc.returncode == 0
     assert "no runs recorded" in proc.stdout.lower()
+
+
+def test_gather_tolerates_malformed_heartbeat(tmp_path):
+    runtime = tmp_path / ".research-loop"
+    lr = runtime / "last_run"
+    lr.mkdir(parents=True)
+    # one good, one malformed (bad JSON), one missing ts
+    (lr / "good.json").write_text(json.dumps(
+        {"watcher": "good", "decision": "continue", "ts": 1000.0,
+         "cadence": {"mode": "manual"}}))
+    (lr / "broken.json").write_text("{ not json")
+    (lr / "nots.json").write_text(json.dumps({"watcher": "nots", "decision": "continue"}))
+    rows = gather(tmp_path, now=2000.0)
+    by = {r["watcher"]: r for r in rows}
+    assert by["good"]["health"] == "ok"
+    # malformed/incomplete files surface as unknown rather than crashing
+    assert by["broken"]["health"] == "unknown"
+    assert by["nots"]["health"] == "unknown"

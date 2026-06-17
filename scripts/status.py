@@ -53,16 +53,24 @@ def gather(project_root, now):
     if not last_run_dir.exists():
         return rows
     for path in sorted(last_run_dir.glob("*.json")):
-        last_run = json.loads(path.read_text(encoding="utf-8"))
-        watcher = last_run.get("watcher", path.stem)
-        blocked = (runtime / f"BLOCKED-{watcher}").exists()
-        health, age = classify(last_run, now, blocked)
-        rows.append({
-            "watcher": watcher,
-            "health": health,
-            "age_seconds": age,
-            "decision": last_run.get("decision", "?"),
-        })
+        try:
+            last_run = json.loads(path.read_text(encoding="utf-8"))
+            watcher = last_run.get("watcher", path.stem)
+            blocked = (runtime / f"BLOCKED-{watcher}").exists()
+            health, age = classify(last_run, now, blocked)
+            rows.append({
+                "watcher": watcher,
+                "health": health,
+                "age_seconds": age,
+                "decision": last_run.get("decision", "?"),
+            })
+        except Exception:
+            rows.append({
+                "watcher": path.stem,
+                "health": "unknown",
+                "age_seconds": 0,
+                "decision": "unreadable heartbeat",
+            })
     return rows
 
 

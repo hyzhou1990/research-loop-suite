@@ -27,6 +27,8 @@ def record_run(runtime, watcher_id, decision, new_count, error_count,
     with (log_dir / f"{watcher_id}.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry) + "\n")
 
+    # The JSONL history above is the source of truth; the heartbeat is a best-effort
+    # latest-state cache (a crash between the two leaves history ahead — acceptable).
     atomic_write_text(runtime / "last_run" / f"{watcher_id}.json", json.dumps(entry, indent=2))
 
     print(f"{watcher_id}: {decision}, {new_count} new, {error_count} err ({duration_ms}ms)",
