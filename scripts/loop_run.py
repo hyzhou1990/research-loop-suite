@@ -26,10 +26,13 @@ def run_once(spec_path, project_root, observer=None):
             errors = 1 if res["decision"] == "error" else 0
             record_run(runtime, watcher_id, res["decision"], len(res["new_findings"]),
                        errors, ms, cadence, error=error)
-        except Exception:
-            pass  # logging must never crash a loop run
+        except Exception as e:  # logging must never crash a loop run
+            print(f"runlog failed for {watcher_id!r}: {e!r}", file=sys.stderr)
 
     start = time.monotonic()
+
+    def elapsed_ms():
+        return int((time.monotonic() - start) * 1000)
     try:
         with watcher_lock(runtime, watcher_id):
             state = load_state(state_path, watcher_id)
@@ -59,7 +62,7 @@ def run_once(spec_path, project_root, observer=None):
                     "decision": "error",
                     "error": f"{type(e).__name__}: {e}",
                 }
-                _record(result, int((time.monotonic() - start) * 1000), error=result["error"])
+                _record(result, elapsed_ms(), error=result["error"])
                 return result
 
             append_findings(runtime / "inbox", watcher_id, res["new_findings"])
@@ -70,11 +73,11 @@ def run_once(spec_path, project_root, observer=None):
                 (runtime / f"BLOCKED-{watcher_id}").write_text(
                     f"Paused for human review at iteration {res['state']['iteration']}.\n"
                 )
-            _record(res, int((time.monotonic() - start) * 1000))
+            _record(res, elapsed_ms())
             return res
     except LoopBusy:
         result = {"new_findings": [], "state": None, "decision": "skipped"}
-        _record(result, int((time.monotonic() - start) * 1000))
+        _record(result, elapsed_ms())
         return result
 
 
