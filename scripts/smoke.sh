@@ -113,6 +113,19 @@ check "inbox digest contains a MEDIUM severity group" \
   "$(contains "$DIGEST" "MEDIUM")"
 
 # ---------------------------------------------------------------------------
+# 4b. run-log + heartbeat + status (#9): the data runs above already created
+#     $PROJECT/.research-loop, so the heartbeat and run-log must exist now.
+# ---------------------------------------------------------------------------
+check "heartbeat written" \
+  "$([ -f "$PROJECT/.research-loop/last_run/data.json" ] && echo 0 || echo 1)"
+check "run-log written" \
+  "$([ -s "$PROJECT/.research-loop/log/data.jsonl" ] && echo 0 || echo 1)"
+
+STATUS_OUT="$( ( cd "$SUITE_ROOT" && "$PY" -m scripts.status "$PROJECT" ) 2>/dev/null )"
+check "status lists the data watcher" \
+  "$(contains "$STATUS_OUT" "data")"
+
+# ---------------------------------------------------------------------------
 # 5. Write-scope gate (observe-only enforcement).
 #    Capture non-zero exit codes safely so set -e does not abort.
 # ---------------------------------------------------------------------------
