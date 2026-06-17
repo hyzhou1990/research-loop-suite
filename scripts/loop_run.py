@@ -1,15 +1,15 @@
 import sys
-import yaml
 from pathlib import Path
 
 from scripts.state import load_state, save_state
 from scripts.loop_engine import run_iteration
 from scripts.inbox import append_findings
 from scripts.observers import get_observer
+from scripts.specs import load_spec
 
 
 def run_once(spec_path, project_root, observer=None):
-    spec = yaml.safe_load(Path(spec_path).read_text())
+    spec = load_spec(spec_path)
     watcher_id = spec["id"]
     project_root = Path(project_root)
     runtime = project_root / ".research-loop"

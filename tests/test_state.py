@@ -23,3 +23,11 @@ def test_save_then_load_roundtrips(tmp_path):
     save_state(p, s)
     assert json.loads(p.read_text())["iteration"] == 3
     assert load_state(p, "lit") == s
+
+
+def test_load_corrupt_state_raises(tmp_path):
+    import pytest
+    p = tmp_path / "bad.json"
+    p.write_text('{"watcher_id": "lit"}')  # missing required keys
+    with pytest.raises(ValueError):
+        load_state(p, "lit")

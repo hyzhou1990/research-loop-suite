@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "cadence", "observe", "flag", "stop"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "cadence": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": {"enum": ["manual", "cron", "self-paced"]},
+        "every": {"type": "string"}
+      }
+    },
+    "observe": {
+      "type": "object",
+      "required": ["target", "how", "inputs"],
+      "properties": {
+        "target": {"type": "string"},
+        "how": {"type": "string"},
+        "inputs": {"type": "array"}
+      }
+    },
+    "flag": {
+      "type": "object",
+      "required": ["dedup_key"],
+      "properties": {
+        "dedup_key": {"type": "string"},
+        "fields": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "stop": {
+      "type": "object",
+      "required": ["max_iterations"],
+      "properties": {
+        "max_iterations": {"type": "integer", "minimum": 1},
+        "pause_for_human_when": {
+          "type": "object",
+          "properties": {"severity_at_least": {"enum": ["low", "medium", "high", "critical"]}}
+        },
+        "exit_when": {
+          "type": "object",
+          "properties": {"empty_iterations": {"type": "integer", "minimum": 1}}
+        }
+      }
+    }
+  }
+}
