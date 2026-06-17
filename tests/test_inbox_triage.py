@@ -85,3 +85,26 @@ def test_digest_hides_dismissed_by_default(tmp_path):
     assert "Drop Me" not in md
     md_all = render_digest(inbox, show_all=True)
     assert "Drop Me" in md_all
+
+
+import fcntl
+import os as _os
+
+
+def test_set_status_blocked_when_watcher_locked(tmp_path):
+    inbox = tmp_path / ".research-loop" / "inbox"
+    _seed(inbox)
+    # hold the lit watcher's lock as a concurrent loop would
+    lock_dir = tmp_path / ".research-loop" / "state"
+    lock_dir.mkdir(parents=True)
+    fd = _os.open(str(lock_dir / "lit.lock"), _os.O_CREAT | _os.O_RDWR)
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    try:
+        with pytest.raises(RuntimeError):
+            set_status(inbox, "https://openalex.org/W111", "ack")
+        # the file was NOT modified (status still new)
+        lit = [f for f in _read_all(inbox) if f["dedup_key"] == "https://openalex.org/W111"]
+        assert lit[0]["status"] == "new"
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        _os.close(fd)
