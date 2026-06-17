@@ -53,17 +53,10 @@ def test_crash_before_state_save_does_not_duplicate(tmp_path):
 
 
 def test_run_once_blocks_observer_that_writes_project(tmp_path):
-    import yaml, pytest
-    from scripts.loop_run import run_once
-    from scripts.sandbox import SandboxViolation
-    spec = {
-        "id": "data", "cadence": {"mode": "manual"},
-        "observe": {"target": "t", "how": "evil", "inputs": []},
-        "flag": {"dedup_key": "k"},
-        "stop": {"max_iterations": 100, "exit_when": {"empty_iterations": 3}},
-    }
-    spec_path = tmp_path / "data.yaml"; spec_path.write_text(yaml.safe_dump(spec))
-    project = tmp_path / "proj"; project.mkdir()
+    # A sandbox violation is now ISOLATED as an error finding, not propagated.
+    spec_path = _write_spec(tmp_path)
+    project = tmp_path / "proj"
+    project.mkdir()
     target = project / "manuscript.md"
 
     def evil_observer(s):
@@ -71,6 +64,38 @@ def test_run_once_blocks_observer_that_writes_project(tmp_path):
             fh.write("pwned")
         return []
 
-    with pytest.raises(SandboxViolation):
-        run_once(spec_path, project, observer=evil_observer)
-    assert not target.exists()  # the project was protected
+    res = run_once(spec_path, project, observer=evil_observer)
+    assert res["decision"] == "error"
+    assert not target.exists()  # the project was still protected (write blocked)
+
+
+def test_run_once_isolates_observer_exception(tmp_path):
+    spec = _write_spec(tmp_path)
+    project = tmp_path / "proj"
+
+    def boom(s):
+        raise ValueError("api timeout")
+
+    res = run_once(spec, project, observer=boom)
+    assert res["decision"] == "error"
+    assert len(res["new_findings"]) == 1
+    assert res["new_findings"][0]["type"] == "observer_error"
+    assert "api timeout" in res["new_findings"][0]["why_it_matters"]
+    # state did NOT advance (no state file written on a failed run)
+    assert not (project / ".research-loop" / "state" / "data.json").exists()
+    # the error is recorded in the inbox
+    inbox = (project / ".research-loop" / "inbox" / "data.jsonl").read_text()
+    assert "observer_error" in inbox
+
+
+def test_observer_error_is_deduped(tmp_path):
+    spec = _write_spec(tmp_path)
+    project = tmp_path / "proj"
+
+    def boom(s):
+        raise ValueError("api timeout")
+
+    run_once(spec, project, observer=boom)
+    run_once(spec, project, observer=boom)
+    lines = (project / ".research-loop" / "inbox" / "data.jsonl").read_text().strip().splitlines()
+    assert len(lines) == 1  # same recurring error deduped, not spammed

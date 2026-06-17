@@ -8,6 +8,7 @@ from scripts.observers import get_observer
 from scripts.specs import load_spec
 from scripts.locking import watcher_lock, LoopBusy
 from scripts.sandbox import observe_sandbox
+from scripts.findings import make_finding
 
 
 def run_once(spec_path, project_root, observer=None):
@@ -26,7 +27,26 @@ def run_once(spec_path, project_root, observer=None):
                 with observe_sandbox(_proj, _rt):
                     return _obs(s)
 
-            res = run_iteration(spec, state, guarded)
+            try:
+                res = run_iteration(spec, state, guarded)
+            except Exception as e:
+                # Observer failure (sandbox violation, network/API error, bug) is
+                # isolated: record it, leave state untouched, do not crash the run.
+                err = make_finding(
+                    dedup_key=f"observer-error:{watcher_id}:{type(e).__name__}",
+                    type="observer_error",
+                    severity="high",
+                    item=f"{watcher_id} observer failed: {type(e).__name__}",
+                    why_it_matters=(str(e)[:500] or type(e).__name__),
+                    suggested_action="inspect the observer/source; the watcher made no progress this run",
+                )
+                append_findings(runtime / "inbox", watcher_id, [err])
+                return {
+                    "new_findings": [err],
+                    "state": None,
+                    "decision": "error",
+                    "error": f"{type(e).__name__}: {e}",
+                }
 
             append_findings(runtime / "inbox", watcher_id, res["new_findings"])
             save_state(state_path, res["state"])
