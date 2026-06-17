@@ -87,6 +87,30 @@ def test_digest_hides_dismissed_by_default(tmp_path):
     assert "Drop Me" in md_all
 
 
+def test_set_status_preserves_concurrent_append_under_lock(tmp_path, monkeypatch):
+    import scripts.inbox as ib
+    from contextlib import contextmanager
+    inbox = tmp_path / ".research-loop" / "inbox"
+    append_findings(inbox, "lit", [make_finding("k1", "new_paper", "medium", "P1", "w", "a")])
+
+    real_lock = ib.watcher_lock
+
+    @contextmanager
+    def lock_then_append(runtime, watcher_id):
+        # simulate a loop iteration appending a NEW finding while we acquire the lock,
+        # i.e. between set_status's pre-lock scan and its locked rewrite
+        with real_lock(runtime, watcher_id):
+            append_findings(inbox, "lit", [make_finding("k2", "new_paper", "medium", "P2", "w", "a")])
+            yield
+
+    monkeypatch.setattr(ib, "watcher_lock", lock_then_append)
+    ib.set_status(inbox, "k1", "ack")
+
+    states = {f["dedup_key"]: f["status"] for f in _read_all(inbox)}
+    assert states["k1"] == "ack"
+    assert states.get("k2") == "new"  # concurrently appended finding must survive
+
+
 import fcntl
 import os as _os
 

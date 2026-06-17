@@ -88,32 +88,34 @@ def set_status(inbox_dir, dedup_key_prefix, new_status):
         raise ValueError(f"invalid status {new_status!r}; expected one of {sorted(VALID_STATUS)}")
     inbox_dir = Path(inbox_dir)
 
-    # find all matches (across every watcher's jsonl) by dedup_key prefix
-    matches = []  # (path, line_index, finding)
-    files = {}    # path -> list[finding]
+    # locate the unique matching file by prefix (scan; ambiguity across watchers handled here)
+    matches = []  # (path, finding)
     for path in sorted(inbox_dir.glob("*.jsonl")):
-        findings = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
-        files[path] = findings
-        for i, f in enumerate(findings):
+        for f in (json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()):
             if f["dedup_key"].startswith(dedup_key_prefix):
-                matches.append((path, i, f))
+                matches.append((path, f))
 
     if not matches:
         raise ValueError(f"no finding matches prefix {dedup_key_prefix!r}")
     if len(matches) > 1:
         raise ValueError(f"ambiguous prefix {dedup_key_prefix!r} matches {len(matches)} findings")
 
-    path, idx, finding = matches[0]
+    path, _ = matches[0]
     watcher_id = path.stem
     runtime = inbox_dir.parent  # the .research-loop dir
     try:
         with watcher_lock(runtime, watcher_id):
-            findings = files[path]
-            findings[idx]["status"] = new_status
+            # Re-read under the lock: the pre-lock scan may be stale if a loop
+            # iteration appended to this watcher's jsonl in the meantime.
+            findings = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+            target = [i for i, f in enumerate(findings) if f["dedup_key"].startswith(dedup_key_prefix)]
+            if len(target) != 1:
+                raise ValueError(f"prefix {dedup_key_prefix!r} no longer uniquely matches under lock")
+            findings[target[0]]["status"] = new_status
             _atomic_write_lines(path, [json.dumps(f) for f in findings])
+            return findings[target[0]]
     except LoopBusy as e:
         raise RuntimeError(f"watcher {watcher_id!r} is running; try triage again shortly") from e
-    return findings[idx]
 
 
 def main(argv=None):
