@@ -1,7 +1,12 @@
 import json
+import os
+import tempfile
 from pathlib import Path
 
+from scripts.locking import watcher_lock, LoopBusy
+
 SEVERITY_ORDER = ["critical", "high", "medium", "low"]
+VALID_STATUS = {"ack", "dismissed", "actioned"}
 
 
 def _existing_keys(path):
@@ -54,6 +59,58 @@ def render_digest(inbox_dir):
                          f"→ _{f['suggested_action']}_  `{f['dedup_key']}` [{f['status']}]")
         lines.append("")
     return "\n".join(lines)
+
+
+def _atomic_write_lines(path, lines):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            for line in lines:
+                fh.write(line + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def set_status(inbox_dir, dedup_key_prefix, new_status):
+    if new_status not in VALID_STATUS:
+        raise ValueError(f"invalid status {new_status!r}; expected one of {sorted(VALID_STATUS)}")
+    inbox_dir = Path(inbox_dir)
+
+    # find all matches (across every watcher's jsonl) by dedup_key prefix
+    matches = []  # (path, line_index, finding)
+    files = {}    # path -> list[finding]
+    for path in sorted(inbox_dir.glob("*.jsonl")):
+        findings = [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        files[path] = findings
+        for i, f in enumerate(findings):
+            if f["dedup_key"].startswith(dedup_key_prefix):
+                matches.append((path, i, f))
+
+    if not matches:
+        raise ValueError(f"no finding matches prefix {dedup_key_prefix!r}")
+    if len(matches) > 1:
+        raise ValueError(f"ambiguous prefix {dedup_key_prefix!r} matches {len(matches)} findings")
+
+    path, idx, finding = matches[0]
+    watcher_id = path.stem
+    runtime = inbox_dir.parent  # the .research-loop dir
+    try:
+        with watcher_lock(runtime, watcher_id):
+            findings = files[path]
+            findings[idx]["status"] = new_status
+            _atomic_write_lines(path, [json.dumps(f) for f in findings])
+    except LoopBusy as e:
+        raise RuntimeError(f"watcher {watcher_id!r} is running; try triage again shortly") from e
+    return findings[idx]
 
 
 def main(argv=None):
