@@ -46,3 +46,22 @@ def test_exit_sets_exited_status():
     res = run_iteration(spec, default_state("lit"), make_observer(["a"]))
     assert res["decision"] == "exit"
     assert res["state"]["status"] == "exited"
+
+
+def test_run_iteration_persists_cursor_from_dict_observer():
+    spec = {"id": "lit", "stop": {"max_iterations": 100, "exit_when": {"empty_iterations": 3}}}
+
+    def dict_observer(spec, state):
+        return {"findings": [], "cursor": "2026-06-15"}
+
+    res = run_iteration(spec, default_state("lit"), dict_observer)
+    assert res["state"]["cursor"] == "2026-06-15"
+
+
+def test_run_iteration_list_observer_leaves_cursor():
+    spec = {"id": "lit", "stop": {"max_iterations": 100, "exit_when": {"empty_iterations": 3}}}
+    state = default_state("lit")
+    state["cursor"] = "keep-me"
+    res = run_iteration(spec, state, make_observer(["a"]))  # returns a list
+    assert res["state"]["cursor"] == "keep-me"
+    assert [f["dedup_key"] for f in res["new_findings"]] == ["a"]

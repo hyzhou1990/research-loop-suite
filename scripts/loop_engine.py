@@ -49,13 +49,21 @@ _STATUS_BY_DECISION = {"pause": "blocked", "exit": "exited", "continue": "active
 
 
 def run_iteration(spec, state, observer):
-    candidates = observer(spec)
+    raw = call_observer(observer, spec, state)
+    if isinstance(raw, dict):
+        candidates = raw.get("findings", [])
+        new_cursor = raw.get("cursor", state.get("cursor"))
+    else:
+        candidates = raw
+        new_cursor = state.get("cursor")
+
     new = dedup_findings(candidates, state["seen_keys"])
 
     new_state = dict(state)
     new_state["iteration"] = state["iteration"] + 1
     new_state["seen_keys"] = list(state["seen_keys"]) + [f["dedup_key"] for f in new]
     new_state["empty_streak"] = 0 if new else state.get("empty_streak", 0) + 1
+    new_state["cursor"] = new_cursor
 
     decision = evaluate_stop(spec, new_state, new)
     new_state["status"] = _STATUS_BY_DECISION[decision]
