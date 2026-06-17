@@ -26,7 +26,10 @@ def load_state(path, watcher_id):
     path = Path(path)
     if not path.exists():
         return default_state(watcher_id)
-    state = json.loads(path.read_text())
+    try:
+        state = json.loads(path.read_text())
+    except json.JSONDecodeError as e:
+        raise ValueError(f"corrupt state file {path}: invalid JSON ({e})") from e
     try:
         jsonschema.validate(state, _state_schema())
     except jsonschema.ValidationError as e:

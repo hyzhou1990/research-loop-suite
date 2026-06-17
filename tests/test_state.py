@@ -31,3 +31,11 @@ def test_load_corrupt_state_raises(tmp_path):
     p.write_text('{"watcher_id": "lit"}')  # missing required keys
     with pytest.raises(ValueError):
         load_state(p, "lit")
+
+
+def test_load_malformed_json_state_raises(tmp_path):
+    import pytest
+    p = tmp_path / "trunc.json"
+    p.write_text('{"watcher_id": "lit", "iter')  # truncated / invalid JSON
+    with pytest.raises(ValueError):
+        load_state(p, "lit")
