@@ -1,3 +1,19 @@
+import inspect
+
+
+def call_observer(fn, spec, state):
+    """Call an observer back-compatibly: 2+ required positional params -> fn(spec, state),
+    else fn(spec). Falls back to fn(spec) if the signature cannot be introspected."""
+    try:
+        required = [p for p in inspect.signature(fn).parameters.values()
+                    if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
+                    and p.default is p.empty]
+        n = len(required)
+    except (TypeError, ValueError):
+        n = 1
+    return fn(spec, state) if n >= 2 else fn(spec)
+
+
 def dedup_findings(candidates, seen_keys):
     seen = set(seen_keys)
     return [f for f in candidates if f["dedup_key"] not in seen]
