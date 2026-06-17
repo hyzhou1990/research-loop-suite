@@ -3,7 +3,12 @@ import inspect
 
 def call_observer(fn, spec, state):
     """Call an observer back-compatibly: 2+ required positional params -> fn(spec, state),
-    else fn(spec). Falls back to fn(spec) if the signature cannot be introspected."""
+    else fn(spec). Falls back to fn(spec) if the signature cannot be introspected.
+
+    Dispatch assumes plain positional signatures. An observer that wants `state` via a
+    variadic (*args), keyword-only, or pre-bound-partial signature won't be detected as
+    2-arg -- declare it explicitly as `def observer(spec, state)`.
+    """
     try:
         required = [p for p in inspect.signature(fn).parameters.values()
                     if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
