@@ -68,3 +68,20 @@ def test_set_status_rewrite_keeps_valid_jsonl(tmp_path):
     assert by_key["https://openalex.org/W111"] == "new"
     # no leftover temp files in the inbox dir
     assert sorted(p.name for p in inbox.iterdir()) == ["data.jsonl", "lit.jsonl"]
+
+
+from scripts.inbox import render_digest
+
+
+def test_digest_hides_dismissed_by_default(tmp_path):
+    inbox = tmp_path / ".research-loop" / "inbox"
+    append_findings(inbox, "lit", [
+        make_finding("k-keep", "new_paper", "medium", "Keep Me", "w", "a"),
+        make_finding("k-drop", "new_paper", "medium", "Drop Me", "w", "a"),
+    ])
+    set_status(inbox, "k-drop", "dismissed")
+    md = render_digest(inbox)
+    assert "Keep Me" in md
+    assert "Drop Me" not in md
+    md_all = render_digest(inbox, show_all=True)
+    assert "Drop Me" in md_all

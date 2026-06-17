@@ -46,8 +46,10 @@ def _read_all(inbox_dir):
     return out
 
 
-def render_digest(inbox_dir):
+def render_digest(inbox_dir, show_all=False):
     findings = _read_all(inbox_dir)
+    if not show_all:
+        findings = [f for f in findings if f.get("status") != "dismissed"]
     lines = ["# Research Loop — Inbox Digest", ""]
     for sev in SEVERITY_ORDER:
         group = [f for f in findings if f["severity"] == sev]
