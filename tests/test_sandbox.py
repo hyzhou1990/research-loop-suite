@@ -1,4 +1,5 @@
 import os
+import subprocess
 import pytest
 from pathlib import Path
 from scripts.sandbox import observe_sandbox, SandboxViolation
@@ -67,3 +68,33 @@ def test_inactive_after_context_exits(tmp_path):
     with open(target, "w") as fh:
         fh.write("ok")
     assert target.exists()
+
+
+def test_blocks_subprocess_spawn(tmp_path):
+    project, runtime = _dirs(tmp_path)
+    target = project / "manuscript.md"
+    with pytest.raises(SandboxViolation):
+        with observe_sandbox(project, runtime):
+            subprocess.run(["sh", "-c", f"echo pwned > {target}"])
+    assert not target.exists()  # spawn vetoed before the child could write
+
+
+def test_blocks_os_system(tmp_path):
+    project, runtime = _dirs(tmp_path)
+    target = project / "viashell.md"
+    with pytest.raises(SandboxViolation):
+        with observe_sandbox(project, runtime):
+            os.system(f"echo pwned > {target}")
+    assert not target.exists()
+
+
+def test_blocks_thread_that_writes(tmp_path):
+    import threading
+    project, runtime = _dirs(tmp_path)
+    target = project / "viathread.md"
+    with pytest.raises(SandboxViolation):
+        with observe_sandbox(project, runtime):
+            t = threading.Thread(target=lambda: open(target, "w").close())
+            t.start()
+            t.join()
+    assert not target.exists()

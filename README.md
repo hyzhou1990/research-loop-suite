@@ -96,6 +96,12 @@ A `PreToolUse` hook (`scripts/write_scope_guard.py`, wired via `hooks/hooks.json
 
 > ⚠️ **Important limitation.** The gate is a Claude-harness hook. The **unattended `cron` path runs a bare Python process with no hook**, so today its observe-only guarantee rests on the observers being pure read-only Python. Before shipping any observer that gains network/LLM/file-write capability, either run cron under a hooked harness or add an in-process scope check.
 
+The in-process sandbox (`scripts/sandbox.py`, an `sys.addaudithook` veto) has known residual limitations:
+
+- pre-opened file descriptors plus raw `os.write` are not interceptable via audit hooks (writes happen at the fd level, below the hooked events);
+- observers that need to run read-only external tools must use an OS-level read-only mount, not this hook — spawning child processes is blocked by design (they would not inherit the audit hook);
+- the thread-local gate covers the observing thread only; spawning new threads is blocked rather than propagated into them.
+
 ## Layout
 
 ```

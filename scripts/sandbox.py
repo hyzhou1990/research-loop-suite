@@ -14,14 +14,25 @@ _installed = False
 
 _WRITE_OPEN_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
 
+# Spawning a child process or thread escapes this in-process audit hook:
+# a child process does NOT inherit sys.addaudithook, and a new thread is not
+# covered by the thread-local active flag. These events fire in THIS interpreter
+# BEFORE the spawn, so we veto them during observation.
+_SPAWN_EVENTS = frozenset({
+    "subprocess.Popen", "os.system", "os.posix_spawn",
+    "os.fork", "os.forkpty", "pty.spawn",
+})
+
 
 def _active():
     return getattr(_state, "active", False)
 
 
 def _check(path):
-    project = _state.project
-    runtime = _state.runtime
+    project = getattr(_state, "project", None)
+    runtime = getattr(_state, "runtime", None)
+    if project is None or runtime is None:
+        raise SandboxViolation("observe-only sandbox: active without bounds set")
     try:
         resolved = Path(os.fsdecode(path)).resolve()
     except (ValueError, OSError):
@@ -40,6 +51,17 @@ def _check(path):
 def _audit(event, args):
     if not _active():
         return
+    if event in _SPAWN_EVENTS or event.startswith(("os.exec", "os.spawn")):
+        raise SandboxViolation(
+            f"observe-only sandbox: blocked process spawn ({event}) during "
+            f"observation — child processes escape the audit hook. "
+            f"Graduate to a human Tier-2 action."
+        )
+    if event in ("_thread.start_new_thread", "_thread.start_joinable_thread"):
+        raise SandboxViolation(
+            "observe-only sandbox: blocked thread spawn during observation "
+            "(new threads are not gated by the sandbox)."
+        )
     if event == "open":
         path, mode, flags = args
         if isinstance(path, int):
