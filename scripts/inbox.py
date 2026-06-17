@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -116,12 +117,30 @@ def set_status(inbox_dir, dedup_key_prefix, new_status):
 
 
 def main(argv=None):
-    import sys
-    argv = sys.argv[1:] if argv is None else argv
-    if not argv:
-        print("usage: python3 -m scripts.inbox <inbox_dir>", file=sys.stderr)
+    import argparse
+    parser = argparse.ArgumentParser(prog="scripts.inbox", description="Research Loop inbox")
+    parser.add_argument("inbox_dir")
+    parser.add_argument("command", nargs="?", default="digest",
+                        choices=["digest", "ack", "dismiss", "actioned"])
+    parser.add_argument("key", nargs="?", default=None)
+    parser.add_argument("--all", action="store_true", help="include dismissed findings in the digest")
+    args = parser.parse_args(argv)
+
+    if args.command == "digest":
+        print(render_digest(args.inbox_dir, show_all=args.all))
+        return 0
+
+    if not args.key:
+        print(f"usage: scripts.inbox <inbox_dir> {args.command} <dedup_key_prefix>", file=sys.stderr)
         return 2
-    print(render_digest(argv[0]))
+    # CLI verb -> stored status value ("dismiss" command sets status "dismissed")
+    status_by_command = {"ack": "ack", "dismiss": "dismissed", "actioned": "actioned"}
+    try:
+        updated = set_status(args.inbox_dir, args.key, status_by_command[args.command])
+    except (ValueError, RuntimeError) as e:
+        print(str(e), file=sys.stderr)
+        return 2
+    print(f"{updated['status']}: {updated['item']} ({updated['dedup_key']})")
     return 0
 
 
