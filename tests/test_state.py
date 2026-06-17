@@ -49,3 +49,24 @@ def test_save_state_is_atomic_no_tmp_left(tmp_path):
     leftovers = [x.name for x in tmp_path.iterdir() if x.name != "s.json"]
     assert leftovers == []
     assert load_state(p, "lit")["iteration"] == 2
+
+
+def test_save_state_failure_preserves_original_and_leaves_no_tmp(tmp_path, monkeypatch):
+    import pytest
+    p = tmp_path / "s.json"
+    save_state(p, {**default_state("lit"), "iteration": 1})
+    original = p.read_text()
+
+    def boom(*a, **k):
+        raise RuntimeError("disk full")
+
+    # Inject a failure mid-write (temp file open, before os.replace).
+    monkeypatch.setattr("scripts.state.os.fsync", boom)
+    with pytest.raises(RuntimeError):
+        save_state(p, {**default_state("lit"), "iteration": 2})
+
+    # Atomicity: original intact, still loadable, no temp leftover.
+    assert p.read_text() == original
+    assert load_state(p, "lit")["iteration"] == 1
+    leftovers = [x.name for x in tmp_path.iterdir() if x.name != "s.json"]
+    assert leftovers == []

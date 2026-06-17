@@ -5,6 +5,9 @@ SEVERITY_ORDER = ["critical", "high", "medium", "low"]
 
 
 def _existing_keys(path):
+    # Re-reads the whole inbox file per append: O(n) each call. Fine at loop cadence
+    # (few findings/iteration, KB-scale files); revisit if a high-frequency watcher
+    # grows an inbox to tens of thousands of lines.
     if not path.exists():
         return set()
     keys = set()
