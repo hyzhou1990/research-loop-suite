@@ -5,7 +5,7 @@ A **loop-native research suite**: a lean engine that runs declarative *watcher* 
 > **The one invariant:** _Observe autonomously. Mutate only behind a human gate._
 > A loop may search, read, diff, score, and flag. It never edits your manuscript or data, and it can only write inside `.research-loop/`. Acting on a finding is always a human decision.
 
-[![tests](https://img.shields.io/badge/tests-101%20passing-brightgreen)](#development)
+[![tests](https://img.shields.io/badge/tests-120%20passing-brightgreen)](#development)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 ---
@@ -88,6 +88,15 @@ python3 -m scripts.inbox <project>/.research-loop/inbox actioned <key>  # mark h
 ```
 `<key>` is any unique prefix of a finding's `dedup_key` (shown in the digest).
 
+### Check status
+
+```bash
+python3 -m scripts.status <project>     # one line per watcher: health, age, last decision
+```
+Health is `ok` / `stale` (overdue vs the spec cadence) / `error` (last run failed) / `blocked`
+(paused for human review). Each run also appends to `<project>/.research-loop/log/<watcher>.jsonl`
+and updates `<project>/.research-loop/last_run/<watcher>.json`.
+
 ## Schedulers
 
 All three call the same entrypoint — a watcher doesn't care which fires it:
@@ -140,7 +149,7 @@ The engine handles dedup, scoring, the inbox, state, and stop logic — the obse
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/pytest -q          # 101 passing
+.venv/bin/pytest -q          # 120 passing
 ```
 
 ### Smoke test
